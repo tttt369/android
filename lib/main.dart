@@ -117,6 +117,69 @@ class _SearchScreenState extends State<SearchScreen> {
     super.dispose();
   }
 
+  // 新しい関数を定義
+  void _handleFoodSelection() {
+  }
+
+  Widget buildFoodItemCard(food) {
+    return Card(
+      margin: const EdgeInsets.symmetric(vertical: 8),
+      child: Padding(
+        padding: const EdgeInsets.all(8.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Text(
+                    food.name,
+                    style: const TextStyle(fontSize: 20),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      '${food.searchKcal}kcal',
+                      style: const TextStyle(fontSize: 16),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(width: 8),
+                    SizedBox(
+                      width: 50,
+                      height: 50,
+                      child: Image.network(
+                        food.imageUrl,
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) => const Icon(Icons.error),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    GestureDetector(
+                      onTap: () { _handleFoodSelection(); },
+                      child: const Icon(Icons.add_circle, size: 30, color: Colors.blue),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              '単位: ${food.ccdsUnit}',
+              style: const TextStyle(fontSize: 16),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Map<int, Widget> foodCards = {};
+
   @override
   Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(title: Text('${widget.mealType} 検索')),
@@ -149,8 +212,7 @@ class _SearchScreenState extends State<SearchScreen> {
               padding: const EdgeInsets.all(8.0),
               child: Text(_errorMessage!, style: const TextStyle(color: Colors.red)),
             ),
-          _isLoading
-          ? const Center(child: CircularProgressIndicator())
+          _isLoading ? const Center(child: CircularProgressIndicator())
           : Expanded(
             child: _searchResults.isEmpty && _errorMessage == null
             ? const Center(child: Text('検索結果がありません'))
@@ -158,57 +220,9 @@ class _SearchScreenState extends State<SearchScreen> {
               itemCount: _searchResults.length,
               itemBuilder: (context, index) {
                 final food = _searchResults[index];
-                return Card(
-                  margin: const EdgeInsets.symmetric(vertical: 8),
-                  child: Padding(
-                    padding: const EdgeInsets.all(8.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Expanded(
-                              child: Text(
-                                food.name,
-                                style: const TextStyle(fontSize: 20),
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                            Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Text(
-                                  '${food.searchKcal}kcal',
-                                  style: const TextStyle(fontSize: 16),
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                                const SizedBox(width: 8),
-                                SizedBox(
-                                  width: 50,
-                                  height: 50,
-                                  child: Image.network(
-                                    food.imageUrl,
-                                    fit: BoxFit.cover,
-                                    errorBuilder: (context, error, stackTrace) => const Icon(Icons.error),
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                const Icon(Icons.add_circle, size: 30),
-                              ],
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          '単位: ${food.ccdsUnit}',
-                          style: const TextStyle(fontSize: 16),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ],
-                    ),
-                  ),
-                );
+                final card = buildFoodItemCard(food);
+                foodCards[index] = card; // foodCardsに追加
+                return card; // カードをreturn
               },
             ),
           ),
