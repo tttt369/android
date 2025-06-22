@@ -338,12 +338,11 @@ class _MyHomePageState extends State<MyHomePage> {
     child: SizedBox(
       width: double.infinity,
       height: index == 0 ? _macroCardHeight : _cardHeight,
-      child: Stack(
+      child: Column(
         children: [
           if (data.cardTitle != null)
-            Positioned(
-              top: _cardMargin,
-              left: _cardMargin,
+            Padding(
+              padding: const EdgeInsets.only(top: 8.0),
               child: Text(
                 data.cardTitle!,
                 style: const TextStyle(
@@ -352,27 +351,32 @@ class _MyHomePageState extends State<MyHomePage> {
                 ),
               ),
             ),
-          Positioned(
-            left: _cardMargin,
-            right: _cardMargin,
-            bottom: _cardMargin,
-            child:
-                data.cardExtraContent ??
-                GestureDetector(
-                  onTap: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) =>
-                          SearchScreen(mealType: data.cardTitle ?? '食事'),
-                    ),
-                  ),
-                  child: const Icon(
-                    Icons.add,
-                    size: _iconSize,
-                    color: Colors.blue,
+          if (data.cardExtraContent != null)
+            Container(
+              margin: const EdgeInsets.all(_cardMargin),
+              child: data.cardExtraContent,
+            )
+          else ...[
+            const Spacer(),
+            Container(
+              alignment: Alignment.center,
+              child: GestureDetector(
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) =>
+                        SearchScreen(mealType: data.cardTitle ?? '食事'),
                   ),
                 ),
-          ),
+                child: const Icon(
+                  Icons.add,
+                  size: _iconSize,
+                  color: Colors.blue,
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+          ],
         ],
       ),
     ),
