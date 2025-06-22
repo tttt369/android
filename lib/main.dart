@@ -40,7 +40,13 @@ class FoodItem {
 
 class SearchScreen extends StatefulWidget {
   final String mealType;
-  const SearchScreen({super.key, required this.mealType});
+  final Function(FoodItem) onFoodSelected;
+
+  const SearchScreen({
+    super.key,
+    required this.mealType,
+    required this.onFoodSelected,
+  });
 
   @override
   State<SearchScreen> createState() => _SearchScreenState();
@@ -83,7 +89,6 @@ class _SearchScreenState extends State<SearchScreen> {
 
           if (noValue.isNotEmpty && name.isNotEmpty) {
             results.add(FoodItem(
-              // インデックスを追加する
               name: name,
               imageUrl: 'https://cdn.slism.jp/calorie/foodImages/$noValue.jpg',
               ccdsUnit: unit,
@@ -117,11 +122,7 @@ class _SearchScreenState extends State<SearchScreen> {
     super.dispose();
   }
 
-  // 新しい関数を定義
-  void _handleFoodSelection() {
-  }
-
-  Widget buildFoodItemCard(food) {
+  Widget buildFoodItemCard(FoodItem food) {
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 8),
       child: Padding(
@@ -159,7 +160,7 @@ class _SearchScreenState extends State<SearchScreen> {
                     ),
                     const SizedBox(width: 8),
                     GestureDetector(
-                      onTap: () { _handleFoodSelection(); },
+                      onTap: () => widget.onFoodSelected(food),
                       child: const Icon(Icons.add_circle, size: 30, color: Colors.blue),
                     ),
                   ],
@@ -177,8 +178,6 @@ class _SearchScreenState extends State<SearchScreen> {
       ),
     );
   }
-
-  Map<int, Widget> foodCards = {};
 
   @override
   Widget build(BuildContext context) => Scaffold(
@@ -212,20 +211,16 @@ class _SearchScreenState extends State<SearchScreen> {
               padding: const EdgeInsets.all(8.0),
               child: Text(_errorMessage!, style: const TextStyle(color: Colors.red)),
             ),
-          _isLoading ? const Center(child: CircularProgressIndicator())
-          : Expanded(
-            child: _searchResults.isEmpty && _errorMessage == null
-            ? const Center(child: Text('検索結果がありません'))
-            : ListView.builder(
-              itemCount: _searchResults.length,
-              itemBuilder: (context, index) {
-                final food = _searchResults[index];
-                final card = buildFoodItemCard(food);
-                foodCards[index] = card; // foodCardsに追加
-                return card; // カードをreturn
-              },
-            ),
-          ),
+          _isLoading
+              ? const Center(child: CircularProgressIndicator())
+              : Expanded(
+                  child: _searchResults.isEmpty && _errorMessage == null
+                      ? const Center(child: Text('検索結果がありません'))
+                      : ListView.builder(
+                          itemCount: _searchResults.length,
+                          itemBuilder: (context, index) => buildFoodItemCard(_searchResults[index]),
+                        ),
+                ),
         ],
       ),
     ),
@@ -242,7 +237,7 @@ class MyHomePage extends StatefulWidget {
 class _MyHomePageState extends State<MyHomePage> {
   int _selectedIndex = 0;
   static const _cardHeight = 100.0;
-  static const _macroCardHeight = 200.0;
+  static const _macroCardHeight = 210.0;
   static const _cardMargin = 10.0;
   static const _cardBorderRadius = BorderRadius.all(Radius.circular(10));
   static const _iconSize = 24.0;
@@ -259,6 +254,11 @@ class _MyHomePageState extends State<MyHomePage> {
   double currentCalories = 1200, maxCalories = 2000;
   double proteinCurrent = 30, carbCurrent = 30, fatCurrent = 30;
   double proteinMax = 100, carbMax = 100, fatMax = 100;
+  final Map<String, List<FoodItem>> _addedFoods = {
+    '朝食': [],
+    '昼食': [],
+    '夜食': [],
+  };
 
   List<PieChartSectionData> _getPieChartData() => [
         PieChartSectionData(
@@ -302,35 +302,77 @@ class _MyHomePageState extends State<MyHomePage> {
     );
   }
 
+  Widget _buildFoodCard(FoodItem food) {
+    return Card(
+      margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+      child: Padding(
+        padding: const EdgeInsets.all(8.0),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Expanded(
+              child: Text(
+                food.name,
+                style: const TextStyle(fontSize: 16),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            Text(
+              '${food.searchKcal}kcal',
+              style: const TextStyle(fontSize: 14),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildCard(PageData data, int index) => Card(
         shape: const RoundedRectangleBorder(borderRadius: _cardBorderRadius),
         child: SizedBox(
           width: double.infinity,
-          height: index == 0 ? _macroCardHeight : _cardHeight,
-          child: Stack(
+          height: index == 0 ? _macroCardHeight : _cardHeight + (_addedFoods[data.cardTitle]?.length ?? 0) * 60.0,
+          child: Column(
             children: [
               if (data.cardTitle != null)
-                Positioned(
-                  top: _cardMargin,
-                  left: _cardMargin,
+                Padding(
+                  padding: const EdgeInsets.only(top: 8.0),
                   child: Text(
                     data.cardTitle!,
                     style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                   ),
                 ),
-              Positioned(
-                left: _cardMargin,
-                right: _cardMargin,
-                bottom: _cardMargin,
-                child: data.cardExtraContent ??
-                    GestureDetector(
-                      onTap: () => Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (context) => SearchScreen(mealType: data.cardTitle ?? '食事')),
+              if (data.cardExtraContent != null)
+                Container(
+                  margin: const EdgeInsets.all(_cardMargin),
+                  child: data.cardExtraContent,
+                )
+              else ...[
+                if (_addedFoods[data.cardTitle]?.isNotEmpty ?? false)
+                  ..._addedFoods[data.cardTitle]!.map((food) => _buildFoodCard(food)),
+                const Spacer(),
+                Container(
+                  alignment: Alignment.center,
+                  child: GestureDetector(
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => SearchScreen(
+                          mealType: data.cardTitle ?? '食事',
+                          onFoodSelected: (food) {
+                            setState(() {
+                              _addedFoods[data.cardTitle]?.add(food);
+                              currentCalories += double.parse(food.searchKcal.replaceAll('kcal', ''));
+                            });
+                          },
+                        ),
                       ),
-                      child: const Icon(Icons.add, size: _iconSize, color: Colors.blue),
                     ),
-              ),
+                    child: const Icon(Icons.add, size: _iconSize, color: Colors.blue),
+                  ),
+                ),
+                const SizedBox(height: 8),
+              ]
             ],
           ),
         ),
@@ -441,7 +483,7 @@ class _MyHomePageState extends State<MyHomePage> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(title: const Text('NavigationBar サンプル')),
+        appBar: AppBar(title: const Text('Nutrition Tracker')),
         body: _pageWidgets[_selectedIndex],
         bottomNavigationBar: NavigationBar(
           destinations: _pages.map((e) => NavigationDestination(icon: Icon(e.icon), label: e.title)).toList(),
