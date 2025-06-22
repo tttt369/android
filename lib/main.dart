@@ -62,7 +62,9 @@ class _SearchScreenState extends State<SearchScreen> {
     });
 
     try {
-      final url = Uri.parse('https://calorie.slism.jp/?searchWord=$query&search=検索');
+      final url = Uri.parse(
+        'https://calorie.slism.jp/?searchWord=$query&search=検索',
+      );
       final response = await http.get(url);
 
       if (response.statusCode == 200) {
@@ -73,7 +75,12 @@ class _SearchScreenState extends State<SearchScreen> {
         final searchKcal = document.querySelectorAll('span.searchKcal');
 
         final results = <FoodItem>[];
-        final minLength = [searchNo.length, searchNameVal.length, ccdsUnit.length, searchKcal.length].reduce((a, b) => a < b ? a : b);
+        final minLength = [
+          searchNo.length,
+          searchNameVal.length,
+          ccdsUnit.length,
+          searchKcal.length,
+        ].reduce((a, b) => a < b ? a : b);
 
         for (var i = 0; i < minLength; i++) {
           final noValue = searchNo[i].attributes['value'] ?? '';
@@ -82,13 +89,16 @@ class _SearchScreenState extends State<SearchScreen> {
           final kcal = searchKcal[i].text ?? 'N/A';
 
           if (noValue.isNotEmpty && name.isNotEmpty) {
-            results.add(FoodItem(
-              // インデックスを追加する
-              name: name,
-              imageUrl: 'https://cdn.slism.jp/calorie/foodImages/$noValue.jpg',
-              ccdsUnit: unit,
-              searchKcal: kcal,
-            ));
+            results.add(
+              FoodItem(
+                // インデックスを追加する
+                name: name,
+                imageUrl:
+                    'https://cdn.slism.jp/calorie/foodImages/$noValue.jpg',
+                ccdsUnit: unit,
+                searchKcal: kcal,
+              ),
+            );
           }
         }
 
@@ -118,10 +128,12 @@ class _SearchScreenState extends State<SearchScreen> {
   }
 
   // 新しい関数を定義
-  void _handleFoodSelection() {
+  void _handleFoodSelection(index) {
+    var food = foodCards[index];
+    print(food);
   }
 
-  Widget buildFoodItemCard(food) {
+  Widget buildFoodItemCard(food, index) {
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 8),
       child: Padding(
@@ -154,13 +166,20 @@ class _SearchScreenState extends State<SearchScreen> {
                       child: Image.network(
                         food.imageUrl,
                         fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) => const Icon(Icons.error),
+                        errorBuilder: (context, error, stackTrace) =>
+                            const Icon(Icons.error),
                       ),
                     ),
                     const SizedBox(width: 8),
                     GestureDetector(
-                      onTap: () { _handleFoodSelection(); },
-                      child: const Icon(Icons.add_circle, size: 30, color: Colors.blue),
+                      onTap: () {
+                        _handleFoodSelection(index);
+                      },
+                      child: const Icon(
+                        Icons.add_circle,
+                        size: 30,
+                        color: Colors.blue,
+                      ),
                     ),
                   ],
                 ),
@@ -210,22 +229,26 @@ class _SearchScreenState extends State<SearchScreen> {
           if (_errorMessage != null)
             Padding(
               padding: const EdgeInsets.all(8.0),
-              child: Text(_errorMessage!, style: const TextStyle(color: Colors.red)),
+              child: Text(
+                _errorMessage!,
+                style: const TextStyle(color: Colors.red),
+              ),
             ),
-          _isLoading ? const Center(child: CircularProgressIndicator())
-          : Expanded(
-            child: _searchResults.isEmpty && _errorMessage == null
-            ? const Center(child: Text('検索結果がありません'))
-            : ListView.builder(
-              itemCount: _searchResults.length,
-              itemBuilder: (context, index) {
-                final food = _searchResults[index];
-                final card = buildFoodItemCard(food);
-                foodCards[index] = card; // foodCardsに追加
-                return card; // カードをreturn
-              },
-            ),
-          ),
+          _isLoading
+              ? const Center(child: CircularProgressIndicator())
+              : Expanded(
+                  child: _searchResults.isEmpty && _errorMessage == null
+                      ? const Center(child: Text('検索結果がありません'))
+                      : ListView.builder(
+                          itemCount: _searchResults.length,
+                          itemBuilder: (context, index) {
+                            final food = _searchResults[index];
+                            final card = buildFoodItemCard(food, index);
+                            foodCards[index] = card; // foodCardsに追加
+                            return card; // カードをreturn
+                          },
+                        ),
+                ),
         ],
       ),
     ),
@@ -261,21 +284,27 @@ class _MyHomePageState extends State<MyHomePage> {
   double proteinMax = 100, carbMax = 100, fatMax = 100;
 
   List<PieChartSectionData> _getPieChartData() => [
-        PieChartSectionData(
-          value: currentCalories,
-          color: _proteinColor,
-          title: '',
-          radius: 50,
-        ),
-        PieChartSectionData(
-          value: maxCalories - currentCalories,
-          color: Colors.grey.withOpacity(0.2),
-          title: '',
-          radius: 50,
-        ),
-      ];
+    PieChartSectionData(
+      value: currentCalories,
+      color: _proteinColor,
+      title: '',
+      radius: 50,
+    ),
+    PieChartSectionData(
+      value: maxCalories - currentCalories,
+      color: Colors.grey.withOpacity(0.2),
+      title: '',
+      radius: 50,
+    ),
+  ];
 
-  Widget _buildBarChart(double current, double max, Color color, {double height = 70, double width = 25}) {
+  Widget _buildBarChart(
+    double current,
+    double max,
+    Color color, {
+    double height = 70,
+    double width = 25,
+  }) {
     final percentage = current / max;
     return Container(
       width: width,
@@ -294,7 +323,9 @@ class _MyHomePageState extends State<MyHomePage> {
             height: height * percentage,
             decoration: BoxDecoration(
               color: color,
-              borderRadius: const BorderRadius.vertical(bottom: Radius.circular(4)),
+              borderRadius: const BorderRadius.vertical(
+                bottom: Radius.circular(4),
+              ),
             ),
           ),
         ],
@@ -303,38 +334,49 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   Widget _buildCard(PageData data, int index) => Card(
-        shape: const RoundedRectangleBorder(borderRadius: _cardBorderRadius),
-        child: SizedBox(
-          width: double.infinity,
-          height: index == 0 ? _macroCardHeight : _cardHeight,
-          child: Stack(
-            children: [
-              if (data.cardTitle != null)
-                Positioned(
-                  top: _cardMargin,
-                  left: _cardMargin,
-                  child: Text(
-                    data.cardTitle!,
-                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+    shape: const RoundedRectangleBorder(borderRadius: _cardBorderRadius),
+    child: SizedBox(
+      width: double.infinity,
+      height: index == 0 ? _macroCardHeight : _cardHeight,
+      child: Stack(
+        children: [
+          if (data.cardTitle != null)
+            Positioned(
+              top: _cardMargin,
+              left: _cardMargin,
+              child: Text(
+                data.cardTitle!,
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          Positioned(
+            left: _cardMargin,
+            right: _cardMargin,
+            bottom: _cardMargin,
+            child:
+                data.cardExtraContent ??
+                GestureDetector(
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) =>
+                          SearchScreen(mealType: data.cardTitle ?? '食事'),
+                    ),
+                  ),
+                  child: const Icon(
+                    Icons.add,
+                    size: _iconSize,
+                    color: Colors.blue,
                   ),
                 ),
-              Positioned(
-                left: _cardMargin,
-                right: _cardMargin,
-                bottom: _cardMargin,
-                child: data.cardExtraContent ??
-                    GestureDetector(
-                      onTap: () => Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (context) => SearchScreen(mealType: data.cardTitle ?? '食事')),
-                      ),
-                      child: const Icon(Icons.add, size: _iconSize, color: Colors.blue),
-                    ),
-              ),
-            ],
           ),
-        ),
-      );
+        ],
+      ),
+    ),
+  );
 
   late final List<PageData> _cardData;
   late final List<Widget> _pageWidgets;
@@ -356,11 +398,26 @@ class _MyHomePageState extends State<MyHomePage> {
                   children: [
                     Row(
                       children: [
-                        Text('${currentCalories.toInt()}', style: const TextStyle(fontSize: 30)),
-                        Text(' /${maxCalories.toInt()}kcal', style: const TextStyle(fontSize: 14, color: Colors.black54)),
+                        Text(
+                          '${currentCalories.toInt()}',
+                          style: const TextStyle(fontSize: 30),
+                        ),
+                        Text(
+                          ' /${maxCalories.toInt()}kcal',
+                          style: const TextStyle(
+                            fontSize: 14,
+                            color: Colors.black54,
+                          ),
+                        ),
                       ],
                     ),
-                    Text('残り${(maxCalories - currentCalories).toInt()}kcal', style: const TextStyle(fontSize: 14, color: Colors.black54)),
+                    Text(
+                      '残り${(maxCalories - currentCalories).toInt()}kcal',
+                      style: const TextStyle(
+                        fontSize: 14,
+                        color: Colors.black54,
+                      ),
+                    ),
                   ],
                 ),
                 Row(
@@ -407,7 +464,13 @@ class _MyHomePageState extends State<MyHomePage> {
                     ),
                   ),
                 ),
-                Text('${currentCalories.toInt()} kcal', style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+                Text(
+                  '${currentCalories.toInt()} kcal',
+                  style: const TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
               ],
             ),
           ),
@@ -420,38 +483,55 @@ class _MyHomePageState extends State<MyHomePage> {
     ];
   }
 
-  Widget _buildMacroRow(String label, double current, double max, Color color) => Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+  Widget _buildMacroRow(
+    String label,
+    double current,
+    double max,
+    Color color,
+  ) => Row(
+    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    children: [
+      Row(
         children: [
-          Row(
-            children: [
-              Icon(Icons.square_rounded, size: _iconSize, color: color),
-              const SizedBox(width: 4),
-              Text(label, style: const TextStyle(fontSize: 16)),
-            ],
+          Icon(Icons.square_rounded, size: _iconSize, color: color),
+          const SizedBox(width: 4),
+          Text(label, style: const TextStyle(fontSize: 16)),
+        ],
+      ),
+      Row(
+        children: [
+          Text(
+            '${current.toInt()}',
+            style: TextStyle(
+              fontSize: 20,
+              color: color,
+              fontWeight: FontWeight.bold,
+            ),
           ),
-          Row(
-            children: [
-              Text('${current.toInt()}', style: TextStyle(fontSize: 20, color: color, fontWeight: FontWeight.bold)),
-              Text('/${max.toInt()}g', style: const TextStyle(fontSize: 14, color: Colors.black54)),
-            ],
+          Text(
+            '/${max.toInt()}g',
+            style: const TextStyle(fontSize: 14, color: Colors.black54),
           ),
         ],
-      );
+      ),
+    ],
+  );
 
   @override
   Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(title: const Text('NavigationBar サンプル')),
-        body: _pageWidgets[_selectedIndex],
-        bottomNavigationBar: NavigationBar(
-          destinations: _pages.map((e) => NavigationDestination(icon: Icon(e.icon), label: e.title)).toList(),
-          onDestinationSelected: (index) async {
-            await HapticFeedback.selectionClick();
-            setState(() => _selectedIndex = index);
-          },
-          selectedIndex: _selectedIndex,
-          backgroundColor: Colors.white,
-          indicatorColor: _carbColor.withOpacity(0.2),
-        ),
-      );
+    appBar: AppBar(title: const Text('NavigationBar サンプル')),
+    body: _pageWidgets[_selectedIndex],
+    bottomNavigationBar: NavigationBar(
+      destinations: _pages
+          .map((e) => NavigationDestination(icon: Icon(e.icon), label: e.title))
+          .toList(),
+      onDestinationSelected: (index) async {
+        await HapticFeedback.selectionClick();
+        setState(() => _selectedIndex = index);
+      },
+      selectedIndex: _selectedIndex,
+      backgroundColor: Colors.white,
+      indicatorColor: _carbColor.withOpacity(0.2),
+    ),
+  );
 }
