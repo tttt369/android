@@ -16,15 +16,8 @@ class MyApp extends StatelessWidget {
 class PageData {
   final IconData icon;
   final String title;
-  final String? cardTitle;
-  final Widget? cardExtraContent;
 
-  const PageData({
-    required this.icon,
-    required this.title,
-    this.cardTitle,
-    this.cardExtraContent,
-  });
+  const PageData({required this.icon, required this.title});
 }
 
 class FoodItem {
@@ -91,7 +84,6 @@ class _SearchScreenState extends State<SearchScreen> {
           if (noValue.isNotEmpty && name.isNotEmpty) {
             results.add(
               FoodItem(
-                // インデックスを追加する
                 name: name,
                 imageUrl:
                     'https://cdn.slism.jp/calorie/foodImages/$noValue.jpg',
@@ -127,77 +119,72 @@ class _SearchScreenState extends State<SearchScreen> {
     super.dispose();
   }
 
-  // 新しい関数を定義
-  void _handleFoodSelection(index) {
-    var food = foodCards[index];
-    print(food);
+  void _handleFoodSelection(FoodItem food) {
+    // 選択された食品をMyHomePageに返す
+    Navigator.pop(context, food);
   }
 
-  Widget buildFoodItemCard(food, index) {
+  Widget buildFoodItemCard(FoodItem food, int index) {
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 8),
-      child: Padding(
-        padding: const EdgeInsets.all(8.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Expanded(
-                  child: Text(
-                    food.name,
-                    style: const TextStyle(fontSize: 20),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      '${food.searchKcal}kcal',
-                      style: const TextStyle(fontSize: 16),
+      child: InkWell(
+        onTap: () => _handleFoodSelection(food), // Make entire card clickable
+        child: Padding(
+          padding: const EdgeInsets.all(8.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: Text(
+                      food.name,
+                      style: const TextStyle(fontSize: 20),
                       overflow: TextOverflow.ellipsis,
                     ),
-                    const SizedBox(width: 8),
-                    SizedBox(
-                      width: 50,
-                      height: 50,
-                      child: Image.network(
-                        food.imageUrl,
-                        fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) =>
-                            const Icon(Icons.error),
+                  ),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        '${food.searchKcal}kcal',
+                        style: const TextStyle(fontSize: 16),
+                        overflow: TextOverflow.ellipsis,
                       ),
-                    ),
-                    const SizedBox(width: 8),
-                    GestureDetector(
-                      onTap: () {
-                        _handleFoodSelection(index);
-                      },
-                      child: const Icon(
+                      const SizedBox(width: 8),
+                      SizedBox(
+                        width: 50,
+                        height: 50,
+                        child: Image.network(
+                          food.imageUrl,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) =>
+                              const Icon(Icons.error),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      const Icon(
                         Icons.add_circle,
                         size: 30,
                         color: Colors.blue,
                       ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Text(
-              '単位: ${food.ccdsUnit}',
-              style: const TextStyle(fontSize: 16),
-              overflow: TextOverflow.ellipsis,
-            ),
-          ],
+                    ],
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Text(
+                '単位: ${food.ccdsUnit}',
+                style: const TextStyle(fontSize: 16),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
-
-  Map<int, Widget> foodCards = {};
 
   @override
   Widget build(BuildContext context) => Scaffold(
@@ -241,12 +228,8 @@ class _SearchScreenState extends State<SearchScreen> {
                       ? const Center(child: Text('検索結果がありません'))
                       : ListView.builder(
                           itemCount: _searchResults.length,
-                          itemBuilder: (context, index) {
-                            final food = _searchResults[index];
-                            final card = buildFoodItemCard(food, index);
-                            foodCards[index] = card; // foodCardsに追加
-                            return card; // カードをreturn
-                          },
+                          itemBuilder: (context, index) =>
+                              buildFoodItemCard(_searchResults[index], index),
                         ),
                 ),
         ],
@@ -283,6 +266,20 @@ class _MyHomePageState extends State<MyHomePage> {
   double proteinCurrent = 30, carbCurrent = 30, fatCurrent = 30;
   double proteinMax = 100, carbMax = 100, fatMax = 100;
 
+  // 食事タイプごとの選択された食品を管理するリスト
+  final Map<String, List<FoodItem>> _selectedFoods = {
+    '朝食': [],
+    '昼食': [],
+    '夜食': [],
+  };
+
+  // Helper method to parse calories from text
+  double _parseCalories(String kcalText) {
+    // Remove any non-numeric characters except decimal point
+    final cleanText = kcalText.replaceAll(RegExp(r'[^\d.]'), '');
+    return double.tryParse(cleanText) ?? 0.0;
+  }
+
   List<PieChartSectionData> _getPieChartData() => [
     PieChartSectionData(
       value: currentCalories,
@@ -305,7 +302,7 @@ class _MyHomePageState extends State<MyHomePage> {
     double height = 70,
     double width = 25,
   }) {
-    final percentage = current / max;
+    final percentage = (current / max).clamp(0.0, 1.0);
     return Container(
       width: width,
       height: height,
@@ -331,160 +328,6 @@ class _MyHomePageState extends State<MyHomePage> {
         ],
       ),
     );
-  }
-
-  Widget _buildCard(PageData data, int index) => Card(
-    shape: const RoundedRectangleBorder(borderRadius: _cardBorderRadius),
-    child: SizedBox(
-      width: double.infinity,
-      height: index == 0 ? _macroCardHeight : _cardHeight,
-      child: Column(
-        children: [
-          if (data.cardTitle != null)
-            Padding(
-              padding: const EdgeInsets.only(top: 8.0),
-              child: Text(
-                data.cardTitle!,
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-          if (data.cardExtraContent != null)
-            Container(
-              margin: const EdgeInsets.all(_cardMargin),
-              child: data.cardExtraContent,
-            )
-          else ...[
-            const Spacer(),
-            Container(
-              alignment: Alignment.center,
-              child: GestureDetector(
-                onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) =>
-                        SearchScreen(mealType: data.cardTitle ?? '食事'),
-                  ),
-                ),
-                child: const Icon(
-                  Icons.add,
-                  size: _iconSize,
-                  color: Colors.blue,
-                ),
-              ),
-            ),
-            const SizedBox(height: 8),
-          ],
-        ],
-      ),
-    ),
-  );
-
-  late final List<PageData> _cardData;
-  late final List<Widget> _pageWidgets;
-
-  @override
-  void initState() {
-    super.initState();
-    _cardData = [
-      PageData(
-        icon: Icons.square_rounded,
-        title: '',
-        cardExtraContent: Column(
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Text(
-                          '${currentCalories.toInt()}',
-                          style: const TextStyle(fontSize: 30),
-                        ),
-                        Text(
-                          ' /${maxCalories.toInt()}kcal',
-                          style: const TextStyle(
-                            fontSize: 14,
-                            color: Colors.black54,
-                          ),
-                        ),
-                      ],
-                    ),
-                    Text(
-                      '残り${(maxCalories - currentCalories).toInt()}kcal',
-                      style: const TextStyle(
-                        fontSize: 14,
-                        color: Colors.black54,
-                      ),
-                    ),
-                  ],
-                ),
-                Row(
-                  children: [
-                    _buildBarChart(proteinCurrent, proteinMax, _proteinColor),
-                    const SizedBox(width: 3),
-                    _buildBarChart(carbCurrent, carbMax, _carbColor),
-                    const SizedBox(width: 3),
-                    _buildBarChart(fatCurrent, fatMax, _fatColor),
-                  ],
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            _buildMacroRow('タンパク質', proteinCurrent, proteinMax, _proteinColor),
-            const SizedBox(height: 8),
-            _buildMacroRow('炭水化物', carbCurrent, carbMax, _carbColor),
-            const SizedBox(height: 8),
-            _buildMacroRow('脂質', fatCurrent, fatMax, _fatColor),
-          ],
-        ),
-      ),
-      const PageData(icon: Icons.add_box_rounded, title: '', cardTitle: '朝食'),
-      const PageData(icon: Icons.add_box_rounded, title: '', cardTitle: '昼食'),
-      const PageData(icon: Icons.add_box_rounded, title: '', cardTitle: '夜食'),
-    ];
-
-    _pageWidgets = [
-      ListView(
-        padding: const EdgeInsets.only(top: 16.0),
-        children: [
-          Center(
-            child: Stack(
-              alignment: Alignment.center,
-              children: [
-                SizedBox(
-                  height: 200,
-                  width: 200,
-                  child: PieChart(
-                    PieChartData(
-                      sections: _getPieChartData(),
-                      centerSpaceRadius: 60,
-                      sectionsSpace: 0,
-                    ),
-                  ),
-                ),
-                Text(
-                  '${currentCalories.toInt()} kcal',
-                  style: const TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 20),
-          ..._cardData.asMap().entries.map((e) => _buildCard(e.value, e.key)),
-        ],
-      ),
-      const Center(child: Text('履歴', style: TextStyle(fontSize: 24))),
-      const Center(child: Text('設定', style: TextStyle(fontSize: 24))),
-    ];
   }
 
   Widget _buildMacroRow(
@@ -521,21 +364,248 @@ class _MyHomePageState extends State<MyHomePage> {
     ],
   );
 
+  Widget _buildCard(String? cardTitle, int index) {
+    final isMacro = index == 0;
+    final foods = isMacro ? [] : _selectedFoods[cardTitle] ?? [];
+    final height = isMacro
+        ? _macroCardHeight
+        : _cardHeight + (foods.length * 60.0);
+    return Card(
+      shape: const RoundedRectangleBorder(borderRadius: _cardBorderRadius),
+      child: SizedBox(
+        width: double.infinity,
+        height: height,
+        child: Column(
+          children: [
+            if (cardTitle != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 8.0),
+                child: Text(
+                  cardTitle,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            if (isMacro)
+              Container(
+                margin: const EdgeInsets.all(_cardMargin),
+                child: Column(
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Text(
+                                  '${currentCalories.toInt()}',
+                                  style: const TextStyle(fontSize: 30),
+                                ),
+                                Text(
+                                  ' /${maxCalories.toInt()}kcal',
+                                  style: const TextStyle(
+                                    fontSize: 14,
+                                    color: Colors.black54,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            Text(
+                              '残り${(maxCalories - currentCalories).toInt()}kcal',
+                              style: const TextStyle(
+                                fontSize: 14,
+                                color: Colors.black54,
+                              ),
+                            ),
+                          ],
+                        ),
+                        Row(
+                          children: [
+                            _buildBarChart(
+                              proteinCurrent,
+                              proteinMax,
+                              _proteinColor,
+                            ),
+                            const SizedBox(width: 3),
+                            _buildBarChart(carbCurrent, carbMax, _carbColor),
+                            const SizedBox(width: 3),
+                            _buildBarChart(fatCurrent, fatMax, _fatColor),
+                          ],
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    _buildMacroRow(
+                      'タンパク質',
+                      proteinCurrent,
+                      proteinMax,
+                      _proteinColor,
+                    ),
+                    const SizedBox(height: 8),
+                    _buildMacroRow('炭水化物', carbCurrent, carbMax, _carbColor),
+                    const SizedBox(height: 8),
+                    _buildMacroRow('脂質', fatCurrent, fatMax, _fatColor),
+                  ],
+                ),
+              )
+            else ...[
+              if (foods.isNotEmpty)
+                Expanded(
+                  child: ListView.builder(
+                    shrinkWrap: true,
+                    itemCount: foods.length,
+                    itemBuilder: (context, foodIndex) {
+                      final food = foods[foodIndex];
+                      return ListTile(
+                        leading: Image.network(
+                          food.imageUrl,
+                          width: 40,
+                          height: 40,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) =>
+                              const Icon(Icons.error),
+                        ),
+                        title: Text(food.name),
+                        subtitle: Text(
+                          '${food.searchKcal}kcal | 単位: ${food.ccdsUnit}',
+                        ),
+                        trailing: IconButton(
+                          icon: const Icon(
+                            Icons.remove_circle,
+                            color: Colors.red,
+                          ),
+                          onPressed: () {
+                            setState(() {
+                              final kcal = _parseCalories(food.searchKcal);
+                              currentCalories -= kcal;
+                              if (currentCalories < 0) currentCalories = 0;
+                              foods.removeAt(foodIndex);
+                            });
+                          },
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              if (foods.isEmpty) const Spacer(),
+              Container(
+                alignment: Alignment.center,
+                child: GestureDetector(
+                  onTap: () async {
+                    final result = await Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) =>
+                            SearchScreen(mealType: cardTitle ?? '食事'),
+                      ),
+                    );
+
+                    if (result != null && result is FoodItem) {
+                      setState(() {
+                        print(
+                          'Adding food: ${result.name} with ${result.searchKcal}',
+                        );
+
+                        // Make sure the list exists
+                        if (_selectedFoods[cardTitle] != null) {
+                          _selectedFoods[cardTitle]!.add(result);
+
+                          // Parse and add calories
+                          final kcal = _parseCalories(result.searchKcal);
+                          currentCalories += kcal;
+
+                          print('Updated calories: $currentCalories');
+                        }
+                      });
+                    }
+                  },
+                  child: const Icon(
+                    Icons.add,
+                    size: _iconSize,
+                    color: Colors.blue,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  late final List<String?> _cardTitles;
+
   @override
-  Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('NavigationBar サンプル')),
-    body: _pageWidgets[_selectedIndex],
-    bottomNavigationBar: NavigationBar(
-      destinations: _pages
-          .map((e) => NavigationDestination(icon: Icon(e.icon), label: e.title))
-          .toList(),
-      onDestinationSelected: (index) async {
-        await HapticFeedback.selectionClick();
-        setState(() => _selectedIndex = index);
-      },
-      selectedIndex: _selectedIndex,
-      backgroundColor: Colors.white,
-      indicatorColor: _carbColor.withOpacity(0.2),
-    ),
-  );
+  void initState() {
+    super.initState();
+    _cardTitles = [null, '朝食', '昼食', '夜食'];
+  }
+
+  Widget _buildHomePage() {
+    return ListView(
+      padding: const EdgeInsets.only(top: 16.0),
+      children: [
+        Center(
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              SizedBox(
+                height: 200,
+                width: 200,
+                child: PieChart(
+                  PieChartData(
+                    sections: _getPieChartData(),
+                    centerSpaceRadius: 60,
+                    sectionsSpace: 0,
+                  ),
+                ),
+              ),
+              Text(
+                '${currentCalories.toInt()} kcal',
+                style: const TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 20),
+        ..._cardTitles.asMap().entries.map((e) => _buildCard(e.value, e.key)),
+      ],
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final List<Widget> pages = [
+      _buildHomePage(),
+      const Center(child: Text('履歴', style: TextStyle(fontSize: 24))),
+      const Center(child: Text('設定', style: TextStyle(fontSize: 24))),
+    ];
+
+    return Scaffold(
+      appBar: AppBar(title: const Text('NavigationBar サンプル')),
+      body: pages[_selectedIndex],
+      bottomNavigationBar: NavigationBar(
+        destinations: _pages
+            .map(
+              (e) => NavigationDestination(icon: Icon(e.icon), label: e.title),
+            )
+            .toList(),
+        onDestinationSelected: (index) async {
+          await HapticFeedback.selectionClick();
+          setState(() => _selectedIndex = index);
+        },
+        selectedIndex: _selectedIndex,
+        backgroundColor: Colors.white,
+        indicatorColor: _carbColor.withOpacity(0.2),
+      ),
+    );
+  }
 }
