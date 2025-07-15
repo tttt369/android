@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:http/http.dart' as http;
-import 'package:html/parser.dart' as html_parser;
+import 'package:html/parser.dart' as parser;
+import 'package:html/dom.dart' as html;
 
+// Main application entry point
 void main() => runApp(const MyApp());
 
 class MyApp extends StatelessWidget {
@@ -20,14 +22,16 @@ class PageData {
   const PageData({required this.icon, required this.title});
 }
 
+// Modified FoodItem class to include noValue
 class FoodItem {
-  final String name, imageUrl, ccdsUnit, searchKcal;
+  final String name, imageUrl, ccdsUnit, searchKcal, noValue;
 
   const FoodItem({
     required this.name,
     required this.imageUrl,
     required this.ccdsUnit,
     required this.searchKcal,
+    required this.noValue, // Added noValue field
   });
 }
 
@@ -61,7 +65,7 @@ class _SearchScreenState extends State<SearchScreen> {
       final response = await http.get(url);
 
       if (response.statusCode == 200) {
-        final document = html_parser.parse(response.body);
+        final document = parser.parse(response.body);
         final searchNo = document.querySelectorAll('input.searchNo');
         final searchNameVal = document.querySelectorAll('input.searchNameVal');
         final ccdsUnit = document.querySelectorAll('span.ccds_unit');
@@ -89,6 +93,7 @@ class _SearchScreenState extends State<SearchScreen> {
                     'https://cdn.slism.jp/calorie/foodImages/$noValue.jpg',
                 ccdsUnit: unit,
                 searchKcal: kcal,
+                noValue: noValue, // Include noValue in FoodItem
               ),
             );
           }
@@ -120,7 +125,6 @@ class _SearchScreenState extends State<SearchScreen> {
   }
 
   void _handleFoodSelection(FoodItem food) {
-    // 選択された食品をMyHomePageに返す
     Navigator.pop(context, food);
   }
 
@@ -128,7 +132,7 @@ class _SearchScreenState extends State<SearchScreen> {
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 8),
       child: InkWell(
-        onTap: () => _handleFoodSelection(food), // Make entire card clickable
+        onTap: () => _handleFoodSelection(food),
         child: Padding(
           padding: const EdgeInsets.all(8.0),
           child: Column(
@@ -262,22 +266,71 @@ class _MyHomePageState extends State<MyHomePage> {
     PageData(icon: Icons.settings, title: '設定'),
   ];
 
-  double currentCalories = 1200, maxCalories = 2000;
-  double proteinCurrent = 30, carbCurrent = 30, fatCurrent = 30;
+  double currentCalories = 0, maxCalories = 2000;
+  double proteinCurrent = 0, carbCurrent = 0, fatCurrent = 0;
   double proteinMax = 100, carbMax = 100, fatMax = 100;
 
-  // 食事タイプごとの選択された食品を管理するリスト
   final Map<String, List<FoodItem>> _selectedFoods = {
     '朝食': [],
     '昼食': [],
     '夜食': [],
   };
 
-  // Helper method to parse calories from text
   double _parseCalories(String kcalText) {
-    // Remove any non-numeric characters except decimal point
     final cleanText = kcalText.replaceAll(RegExp(r'[^\d.]'), '');
     return double.tryParse(cleanText) ?? 0.0;
+  }
+
+  // Helper method to parse nutrient values (e.g., "6.36g" -> 6.36)
+  double _parseNutrient(String nutrientText) {
+    final cleanText = nutrientText.replaceAll(RegExp(r'[^\d.]'), '');
+    return double.tryParse(cleanText) ?? 0.0;
+  }
+
+  // Scrape nutritional data from the provided URL
+  Future<Map<String, Map<String, String>>> scrapeSlismData(String url) async {
+    final Map<String, Map<String, String>> result = {};
+
+    try {
+      final response = await http.get(Uri.parse(url));
+      if (response.statusCode != 200) {
+        print('HTTPエラー: ${response.statusCode}');
+        return result;
+      }
+
+      html.Document document = parser.parse(response.body);
+      final mainData = document.querySelector('div#mainData');
+      if (mainData == null) {
+        print('div#mainDataが見つかりません');
+        return result;
+      }
+
+      final tdElements = mainData.querySelectorAll('table td');
+      final thElements = mainData.querySelectorAll('table th');
+
+      final cleanTd = tdElements
+          .map((e) => e.text.trim())
+          .where((text) => text.isNotEmpty)
+          .toList();
+      final cleanTh = thElements
+          .map((e) => e.text.trim())
+          .where((text) => text.isNotEmpty)
+          .toList();
+
+      final Map<String, String> dataMap = {};
+      final length = cleanTd.length < cleanTh.length
+          ? cleanTd.length
+          : cleanTh.length;
+      for (int i = 0; i < length; i++) {
+        dataMap[cleanTh[i]] = cleanTd[i];
+      }
+
+      result[url] = dataMap;
+    } catch (e) {
+      print('エラーが発生しました: $e');
+    }
+
+    return result;
   }
 
   List<PieChartSectionData> _getPieChartData() => [
@@ -478,11 +531,41 @@ class _MyHomePageState extends State<MyHomePage> {
                             Icons.remove_circle,
                             color: Colors.red,
                           ),
-                          onPressed: () {
+                          onPressed: () async {
+                            // Construct the URL using noValue
+                            final url =
+                                'https://calorie.slism.jp/${food.noValue}';
+                            final scrapedData = await scrapeSlismData(url);
+
                             setState(() {
+                              // Parse and subtract calories
                               final kcal = _parseCalories(food.searchKcal);
                               currentCalories -= kcal;
                               if (currentCalories < 0) currentCalories = 0;
+
+                              // Subtract nutritional values if available
+                              final data = scrapedData[url];
+                              if (data != null) {
+                                final protein = _parseNutrient(
+                                  data['タンパク質'] ?? '0g',
+                                );
+                                final carb = _parseNutrient(
+                                  data['炭水化物'] ?? '0g',
+                                );
+                                final fat = _parseNutrient(data['脂質'] ?? '0g');
+
+                                proteinCurrent -= protein;
+                                carbCurrent -= carb;
+                                fatCurrent -= fat;
+
+                                // Ensure values don't go negative
+                                Westwood:
+                                if (proteinCurrent < 0) proteinCurrent = 0;
+                                if (carbCurrent < 0) carbCurrent = 0;
+                                if (fatCurrent < 0) fatCurrent = 0;
+                              }
+
+                              // Remove the food item from the list
                               foods.removeAt(foodIndex);
                             });
                           },
@@ -510,15 +593,32 @@ class _MyHomePageState extends State<MyHomePage> {
                           'Adding food: ${result.name} with ${result.searchKcal}',
                         );
 
-                        // Make sure the list exists
                         if (_selectedFoods[cardTitle] != null) {
                           _selectedFoods[cardTitle]!.add(result);
-
-                          // Parse and add calories
                           final kcal = _parseCalories(result.searchKcal);
                           currentCalories += kcal;
 
-                          print('Updated calories: $currentCalories');
+                          // Fetch and add nutritional data
+                          final url =
+                              'https://calorie.slism.jp/${result.noValue}';
+                          scrapeSlismData(url).then((scrapedData) {
+                            setState(() {
+                              final data = scrapedData[url];
+                              if (data != null) {
+                                final protein = _parseNutrient(
+                                  data['タンパク質'] ?? '0g',
+                                );
+                                final carb = _parseNutrient(
+                                  data['炭水化物'] ?? '0g',
+                                );
+                                final fat = _parseNutrient(data['脂質'] ?? '0g');
+
+                                proteinCurrent += protein;
+                                carbCurrent += carb;
+                                fatCurrent += fat;
+                              }
+                            });
+                          });
                         }
                       });
                     }
