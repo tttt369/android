@@ -401,7 +401,7 @@ class _MyHomePageState extends State<MyHomePage> {
       Row(
         children: [
           Text(
-            '${current.toInt()}',
+            current.toStringAsFixed(1), // Display with 1 decimal place
             style: TextStyle(
               fontSize: 20,
               color: color,
@@ -409,7 +409,7 @@ class _MyHomePageState extends State<MyHomePage> {
             ),
           ),
           Text(
-            '/${max.toInt()}g',
+            '/${max.toStringAsFixed(1)}g', // Display with 1 decimal place
             style: const TextStyle(fontSize: 14, color: Colors.black54),
           ),
         ],
